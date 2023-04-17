@@ -72,8 +72,12 @@ internal sealed class {{AttributeName}} : Attribute
                 .Select(x => new FieldModel(x.Name, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", UseOperatorField(x, caseInsensitive)))
                 .ToArray();
 
+            var @namespace = symbol.ContainingNamespace.IsGlobalNamespace
+                ? null
+                : symbol.ContainingNamespace.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+
             return new EqualityModel(
-                symbol.ContainingNamespace.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+                @namespace,
                 symbol.Name,
                 symbol.TypeKind == TypeKind.Class,
                 fields);
@@ -90,13 +94,26 @@ internal sealed class {{AttributeName}} : Attribute
                 using System.Collections.Generic;
 
                 #nullable enable
-                
-                namespace {{model.Namespace}};
 
-                partial class {{model.TypeName}} : IEquatable<{{annotatedName}}>
+
+                """);
+
+            if (model.Namespace is not null)
+                builder.Append($"""
+                namespace {model.Namespace};
+
+
+                """);
+
+            var opEquals = model.IsClass
+                ? "left is not null ? left.Equals(right) : right is null"
+                : "left.Equals(right)";
+
+            builder.Append($$"""
+                partial {{(model.IsClass ? "class" : "struct")}} {{model.TypeName}} : IEquatable<{{annotatedName}}>
                 {
                     public static bool operator==({{annotatedName}} left, {{annotatedName}} right) =>
-                        left is not null ? left.Equals(right) : right is null;
+                        {{opEquals}};
 
                     public static bool operator!=({{annotatedName}} left, {{annotatedName}} right) =>
                         !(left == right);
@@ -119,14 +136,28 @@ internal sealed class {{AttributeName}} : Attribute
             void WriteEquals()
             {
                 builder.Append($$"""
-                        public bool Equals({{annotatedName}} other)
-                        {
-                            if (other is null) 
-                                return false;
+                    public bool Equals({{annotatedName}} other)
+                    {
 
-                            return
+                """);
 
-                    """);
+                if (model.IsClass)
+                {
+                    builder.Append(""""
+                                if (other is null)
+                                    return false;
+
+                                return
+
+                        """");
+                }
+                else
+                {
+                    builder.Append("""
+                                return
+
+                        """);
+                }
 
                 using var _ = indent.Increase(3);
                 for (var i = 0; i < model.Fields.Length; i++)
@@ -171,7 +202,7 @@ internal sealed class {{AttributeName}} : Attribute
                 using var _ = indent.Increase(2);
                 for (var i = 0; i < model.Fields.Length; i++)
                 {
-                    var field = model.Fields[0];
+                    var field = model.Fields[i];
                     builder.AppendLine($"{indent.Value}hash.Add({field.Name});");
                 }
 
@@ -222,13 +253,13 @@ file record struct FieldModel(string Name, string TypeFullName, CompareKind Comp
 
 file sealed class EqualityModel
 {
-    internal string Namespace { get; }
+    internal string? Namespace { get; }
     internal string TypeName { get; }
     internal bool IsClass { get; }
     internal FieldModel[] Fields { get; }
 
     internal EqualityModel(
-        string @namespace,
+        string? @namespace,
         string typeName,
         bool isClass,
         FieldModel[] fields)
@@ -257,9 +288,9 @@ file sealed class EqualityModelComparer : IEqualityComparer<EqualityModel?>
         }
 
         return
-            x.Namespace == x.Namespace &&
-            x.TypeName == x.TypeName &&
-            x.IsClass == x.IsClass &&
+            x.Namespace == y.Namespace &&
+            x.TypeName == y.TypeName &&
+            x.IsClass == y.IsClass &&
             x.Fields.AsSpan().SequenceEqual(y.Fields.AsSpan());
     }
 
