@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <DebugType>embedded</DebugType>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
