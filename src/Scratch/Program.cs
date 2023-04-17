@@ -1,26 +1,18 @@
 ﻿
-// See https://aka.ms/new-console-template for more information
 using Demo;
+using System.Text.RegularExpressions;
 
-Console.WriteLine("Hello, World!");
+
+Console.WriteLine("Enter an email address");
+var input = Console.ReadLine()!;
+var regex = new Regex(@"[a-z0-9]+@[a-z0-9]+\.[a-z]{2,}$");
+Console.WriteLine(regex.IsMatch(input));
+
+
+
+#region demo2
 var person1 = new Person("jared", "doe");
 var person2 = new Person("penny", "doe");
-if (person1 == person2)
-{
+Console.WriteLine(person1 == person2);
+#endregion
 
-}
-
-namespace Demo
-{
-    partial class Person
-    {
-        string FirstName;
-        string LastName;
-
-        public Person(string firstName, string lastName)
-        {
-            FirstName = firstName;
-            LastName = lastName;
-        })
-    }
-}
