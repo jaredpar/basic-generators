@@ -10,6 +10,48 @@ Console.WriteLine(regex.IsMatch(input));
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #region demo2
 var person1 = new Person("jared", "doe");
 var person2 = new Person("penny", "doe");

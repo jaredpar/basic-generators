@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Demo;
 
-partial class Matcher
+public static partial class Matcher
 {
     [GeneratedRegex(@"[a-z0-9]+@[a-z0-9]+\.[a-z]{2,}$")]
     public static partial Regex CreateEmailRegex();
