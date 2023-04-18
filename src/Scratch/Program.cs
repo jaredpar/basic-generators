@@ -2,7 +2,6 @@
 using Demo;
 using System.Text.RegularExpressions;
 
-
 Console.WriteLine("Enter an email address");
 var input = Console.ReadLine()!;
 var regex = new Regex(@"[a-z0-9]+@[a-z0-9]+\.[a-z]{2,}$");
