@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Basic.Reference.Assemblies;
 using Xunit.Sdk;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Basic.Generators.UnitTests;
 
@@ -54,9 +55,8 @@ public sealed class GeneratorTestUtil
             .GetRunResult();
     }
 
-    public void Verify(
+    private (Compilation Compilation, SyntaxTree GenerateTree) VerifyCore(
         string sourceCode,
-        string expectedGeneratedCode,
         int generatedTreeIndex = 0)
     {
         var sourceCodeTree = CSharpSyntaxTree.ParseText(sourceCode);
@@ -64,10 +64,46 @@ public sealed class GeneratorTestUtil
         var compilation = GetCompilation(result.GeneratedTrees.Append(sourceCodeTree));
 
         var generatedTree = compilation.SyntaxTrees.ToList()[generatedTreeIndex];
-        var actualCode = Trim(generatedTree.ToString());
-        Assert.Equal(Trim(expectedGeneratedCode), actualCode);
-
         VerifyNoDiagnostics(compilation);
-        string Trim(string s) => s.Trim(' ', '\n', '\r');
+        return (compilation, generatedTree);
     }
+
+    public void Verify(
+        string sourceCode,
+        string expectedGeneratedCode,
+        int generatedTreeIndex = 0)
+    {
+        var (_, generatedTree) = VerifyCore(sourceCode, generatedTreeIndex);
+        Assert.Equal(Trim(expectedGeneratedCode), Trim(generatedTree.ToString()));
+    }
+
+    public void VerifyMethod(
+        string methodSignature,
+        string sourceCode,
+        string expectedGeneratedCode,
+        int generatedTreeIndex = 0)
+    {
+        var (compilation, generatedTree) = VerifyCore(sourceCode, generatedTreeIndex);
+        var semanticModel = compilation.GetSemanticModel(generatedTree);
+        var format = new SymbolDisplayFormat();
+        var method = generatedTree
+            .GetRoot()
+            .DescendantNodes()
+            .OfType<MethodDeclarationSyntax>()
+            .Where(x =>
+            {
+                if (semanticModel.GetDeclaredSymbol(x) is IMethodSymbol symbol)
+                {
+                    var sig = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                    return sig == methodSignature;
+                }
+
+                return false;
+            })
+            .Single();
+
+        Assert.Equal(Trim(expectedGeneratedCode), Trim(method.ToString()));
+    }
+
+    private static string Trim(string s) => s.Trim(' ', '\n', '\r');
 }
