@@ -6,23 +6,46 @@ name: .NET
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+    - 'doc/**'
+    - 'README.md'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+    - 'doc/**'
+    - 'README.md'
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
+    timeout-minutes: 30
+
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore
+
     - name: Build
       run: dotnet build --no-restore
+
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal --results-directory artifacts/test-results --logger trx
+
+    - uses: dorny/test-reporter@v1
+      if: success() || failure()  
+      with:
+        name: .NET Test Results
+        path: artifacts/test-results/*.trx
+        reporter: dotnet-trx
