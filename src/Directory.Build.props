@@ -3,7 +3,7 @@
     <LangVersion>latest</LangVersion>
     <DebugType>embedded</DebugType>
     <Nullable>enable</Nullable>
-    <ArtifactsPath>$(MSBuildThisFileDirectory)..\artifacts</ArtifactsPath>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\artifacts\</ArtifactsPath>
   </PropertyGroup>
 
   <ItemGroup>

@@ -12,6 +12,8 @@
     <PackageReference Include="Basic.Reference.Assemblies.Net80"  />
     <PackageReference Include="Basic.Reference.Assemblies.Net472"  />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.CodeAnalysis" VersionOverride="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.11.0" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" >
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
