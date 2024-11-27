@@ -20,9 +20,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-      TEST_RESULTS_PATH: ${{ github.workspace }}/artifacts/test-results/test-results.trx
-
     timeout-minutes: 30
 
     steps:
@@ -39,11 +36,11 @@ jobs:
       run: dotnet build --no-restore
 
     - name: Test
-      run: dotnet test --no-build --verbosity normal --logger "trx;LogFileName=$TEST_RESULTS_PATH"
+      run: dotnet test --no-build --verbosity normal --logger "trx;LogFileName=artifacts/test-results/test-results.trx"
 
     - uses: dorny/test-reporter@v1
       if: success() || failure()  
       with:
         name: .NET Test Results
-        path: $TEST_RESULTS_PATH
+        path: artifacts/test-results/test-results.trx
         reporter: dotnet-trx
