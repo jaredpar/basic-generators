@@ -36,11 +36,11 @@ jobs:
       run: dotnet build --no-restore
 
     - name: Test
-      run: dotnet test --no-build --verbosity normal --logger "trx;LogFileName=artifacts/test-results/test-results.trx"
+      run: dotnet test --no-build --verbosity normal --results-directory artifacts/test-results
 
     - uses: dorny/test-reporter@v1
       if: success() || failure()  
       with:
         name: .NET Test Results
-        path: artifacts/test-results/test-results.trx
+        path: artifacts/test-results/*.trx
         reporter: dotnet-trx
