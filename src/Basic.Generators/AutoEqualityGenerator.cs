@@ -86,8 +86,7 @@ internal sealed class {{AttributeName}} : Attribute
 
         static void WriteEqualityModel(SourceProductionContext context, EqualityModel model)
         {
-            var builder = new StringBuilder();
-            var indent = new IndentUtil();
+            var builder = new CodeBuilder();
             var annotatedName = model.IsClass ? $"{model.TypeName}?" : model.TypeName;
 
             builder.Append($$"""
@@ -160,7 +159,6 @@ internal sealed class {{AttributeName}} : Attribute
                         """);
                 }
 
-                using var _ = indent.Increase(3);
                 for (var i = 0; i < model.Fields.Length; i++)
                 {
                     var field = model.Fields[i];
@@ -173,7 +171,7 @@ internal sealed class {{AttributeName}} : Attribute
                         _ => throw new Exception($"invalid {field.CompareKind}")
                     };
 
-                    builder.Append($"{indent.Value}{comp}");
+                    builder.Append(12, comp);
                     if (i + 1 == model.Fields.Length)
                     {
                         builder.AppendLine(";");
@@ -212,21 +210,20 @@ internal sealed class {{AttributeName}} : Attribute
 
                     """);
 
-                using var _ = indent.Increase(2);
                 for (var i = 0; i < model.Fields.Length; i++)
                 {
                     var field = model.Fields[i];
                     if (field.TypeKind is TypeKind.Enum or TypeKind.Struct or TypeKind.Structure)
                     {
-                        builder.AppendLine($"{indent.Value}hash = (hash * 23) + {field.Name}.GetHashCode();");
+                        builder.AppendLine(8, $"hash = (hash * 23) + {field.Name}.GetHashCode();");
                     }
                     else
                     {
-                        builder.AppendLine($"{indent.Value}hash = (hash * 23) + ({field.Name}?.GetHashCode() ?? 0);");
+                        builder.AppendLine(8, $"hash = (hash * 23) + ({field.Name}?.GetHashCode() ?? 0);");
                     }
                 }
 
-                builder.AppendLine($"{indent.Value}return hash;");
+                builder.AppendLine(8, $"return hash;");
 
                 builder.Append("""
                         }
