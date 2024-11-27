@@ -1,10 +1,16 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Collections;
+using System.Collections.Generic;
+using Basic.Reference.Assemblies;
+using Microsoft.CodeAnalysis;
 using Xunit;
 
 namespace Basic.Generators.UnitTests;
 
 public class AutoEqualityGeneratorUnitTests
 {
+    public static IEnumerable<MetadataReference> CoreReferences => Net80.References.All;
+    public static IEnumerable<MetadataReference> FrameworkReferences => Net472.References.All;
+
     public GeneratorTestUtil GeneratorTestUtil { get; }
 
     public AutoEqualityGeneratorUnitTests()
@@ -65,7 +71,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, expected, generatedTreeIndex: 1);
+        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
     }
 
     [Fact]
@@ -118,7 +124,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, expected, generatedTreeIndex: 1);
+        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
     }
 
     [Fact]
@@ -170,7 +176,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, expected, generatedTreeIndex: 1);
+        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
     }
 
     [Fact]
@@ -206,6 +212,7 @@ public class AutoEqualityGeneratorUnitTests
         GeneratorTestUtil.VerifyMethod(
             "bool Simple.Equals(Simple? other)",
             source,
+            CoreReferences,
             expected,
             generatedTreeIndex: 1);
 

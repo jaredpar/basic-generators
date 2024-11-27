@@ -5,7 +5,8 @@
     <_RoslynVersion>4.11.0</_RoslynVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Basic.Reference.Assemblies.Net60" Version="1.7.9" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.7.9" />
+    <PackageVersion Include="Basic.Reference.Assemblies.Net472" Version="1.7.9" />
     <PackageVersion Include="coverlet.msbuild" Version="6.0.2" />
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="$(_RoslynVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="$(_RoslynVersion)" />
