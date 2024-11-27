@@ -3,5 +3,17 @@
     <LangVersion>latest</LangVersion>
     <DebugType>embedded</DebugType>
     <Nullable>enable</Nullable>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\artifacts</ArtifactsPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 
+      These CVE don't apply to this project
+    -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-8g4q-xg66-9fp4" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-hh2w-p6rv-4g7w" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-hq7w-xv5x-g34j" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-5crp-9r3c-p9vr" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-7jgj-8wvc-jh57" />
+  </ItemGroup>
 </Project>
