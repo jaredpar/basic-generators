@@ -21,19 +21,18 @@ public sealed class GeneratorTestUtil
         Generator = generator;
     }
 
-    private Compilation GetCompilation(string sourceCode) =>
-        GetCompilation(new[] { CSharpSyntaxTree.ParseText(sourceCode) });
+    private Compilation GetCompilation(string sourceCode, IEnumerable<MetadataReference> references) =>
+        GetCompilation([CSharpSyntaxTree.ParseText(sourceCode)], references);
 
-    private Compilation GetCompilation(IEnumerable<SyntaxTree> syntaxTrees)
+    private Compilation GetCompilation(IEnumerable<SyntaxTree> syntaxTrees, IEnumerable<MetadataReference> references)
     {
         var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
 
-        var compilation = CSharpCompilation
-            .Create(
-                assemblyName: "TestAssembly",
-                syntaxTrees: syntaxTrees,
-                options: options)
-            .WithReferences(Net60.References.All);
+        var compilation = CSharpCompilation.Create(
+            assemblyName: "TestAssembly",
+            syntaxTrees: syntaxTrees,
+            options: options,
+            references: references);
 
         return compilation;
     }
@@ -43,12 +42,12 @@ public sealed class GeneratorTestUtil
         var diagnostics = compilation
             .GetDiagnostics()
             .Where(x => x.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning);
-        Assert.Empty(diagnostics);
+        AssertEx.Empty(diagnostics);
     }
 
-    public GeneratorDriverRunResult GetRunResult(string sourceCode)
+    public GeneratorDriverRunResult GetRunResult(string sourceCode, IEnumerable<MetadataReference> references)
     {
-        var compilation = GetCompilation(sourceCode);
+        var compilation = GetCompilation(sourceCode, references);
         var driver = CSharpGeneratorDriver.Create(Generator);
         return driver
             .RunGenerators(compilation)
@@ -57,11 +56,12 @@ public sealed class GeneratorTestUtil
 
     private (Compilation Compilation, SyntaxTree GenerateTree) VerifyCore(
         string sourceCode,
+        IEnumerable<MetadataReference> references,
         int generatedTreeIndex = 0)
     {
         var sourceCodeTree = CSharpSyntaxTree.ParseText(sourceCode);
-        var result = GetRunResult(sourceCode);
-        var compilation = GetCompilation(result.GeneratedTrees.Append(sourceCodeTree));
+        var result = GetRunResult(sourceCode, references);
+        var compilation = GetCompilation([.. result.GeneratedTrees, sourceCodeTree], references);
 
         var generatedTree = compilation.SyntaxTrees.ToList()[generatedTreeIndex];
         VerifyNoDiagnostics(compilation);
@@ -70,20 +70,22 @@ public sealed class GeneratorTestUtil
 
     public void Verify(
         string sourceCode,
+        IEnumerable<MetadataReference> references,
         string expectedGeneratedCode,
         int generatedTreeIndex = 0)
     {
-        var (_, generatedTree) = VerifyCore(sourceCode, generatedTreeIndex);
-        Assert.Equal(Trim(expectedGeneratedCode), Trim(generatedTree.ToString()));
+        var (_, generatedTree) = VerifyCore(sourceCode, references, generatedTreeIndex);
+        AssertEx.CodeEquals(Trim(expectedGeneratedCode), Trim(generatedTree.ToString()));
     }
 
     public void VerifyMethod(
         string methodSignature,
         string sourceCode,
+        IEnumerable<MetadataReference> references,
         string expectedGeneratedCode,
         int generatedTreeIndex = 0)
     {
-        var (compilation, generatedTree) = VerifyCore(sourceCode, generatedTreeIndex);
+        var (compilation, generatedTree) = VerifyCore(sourceCode, references, generatedTreeIndex);
         var semanticModel = compilation.GetSemanticModel(generatedTree);
         var format = new SymbolDisplayFormat();
         var method = generatedTree
@@ -102,7 +104,7 @@ public sealed class GeneratorTestUtil
             })
             .Single();
 
-        Assert.Equal(Trim(expectedGeneratedCode), Trim(method.ToString()));
+        AssertEx.CodeEquals(Trim(expectedGeneratedCode), Trim(method.ToString()));
     }
 
     private static string Trim(string s) => s.Trim(' ', '\n', '\r');
