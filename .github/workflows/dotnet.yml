@@ -42,8 +42,8 @@ jobs:
       run: dotnet test --no-build --verbosity normal --logger "trx;LogFileName=$TEST_RESULTS_PATH/test-results.trx"
 
     - uses: dorny/test-reporter@v1
+      if: success() || failure()  
       with:
-        artifact: $TEST_RESULTS_PATH
         name: .NET Test Results
-        path: '*.trx'
+        path: $TEST_RESULTS_PATH/*.trx
         reporter: dotnet-trx
