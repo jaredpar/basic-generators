@@ -69,7 +69,7 @@ internal sealed class {{AttributeName}} : Attribute
             var fields = symbol
                 .GetMembers()
                 .OfType<IFieldSymbol>()
-                .Select(x => new FieldModel(x.Name, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", UseOperatorField(x, caseInsensitive)))
+                .Select(x => new FieldModel(x.Name, x.Type?.TypeKind ?? TypeKind.Unknown, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", UseOperatorField(x, caseInsensitive)))
                 .ToArray();
 
             var @namespace = symbol.ContainingNamespace.IsGlobalNamespace
@@ -80,6 +80,7 @@ internal sealed class {{AttributeName}} : Attribute
                 @namespace,
                 symbol.Name,
                 symbol.TypeKind == TypeKind.Class,
+                simpleHashing: HasSimpleHashing(context.SemanticModel.Compilation),
                 fields);
         }
 
@@ -192,10 +193,22 @@ internal sealed class {{AttributeName}} : Attribute
 
             void WriteGetHashCode()
             {
+                if (model.SimpleHashing)
+                {
+                    WriteGetHashCodeSimple();
+                }
+                else
+                {
+                    WriteGetHashCodeOld();
+                }
+            }
+
+            void WriteGetHashCodeOld()
+            {
                 builder.Append($$"""
                         public override int GetHashCode()
                         {
-                            var hash = new HashCode();
+                            int hash = 17;
 
                     """);
 
@@ -203,15 +216,38 @@ internal sealed class {{AttributeName}} : Attribute
                 for (var i = 0; i < model.Fields.Length; i++)
                 {
                     var field = model.Fields[i];
-                    builder.AppendLine($"{indent.Value}hash.Add({field.Name});");
+                    if (field.TypeKind is TypeKind.Enum or TypeKind.Struct or TypeKind.Structure)
+                    {
+                        builder.AppendLine($"{indent.Value}hash = (hash * 23) + {field.Name}.GetHashCode();");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"{indent.Value}hash = (hash * 23) + ({field.Name}?.GetHashCode() ?? 0);");
+                    }
                 }
 
+                builder.AppendLine($"{indent.Value}return hash;");
+
                 builder.Append("""
-                            return hash.ToHashCode();
                         }
 
+                    """);
+            }
+
+            void WriteGetHashCodeSimple()
+            {
+                builder.Append($$"""
+                        public override int GetHashCode() =>
+                            HashCode.Combine(
 
                     """);
+
+                for (var i = 0; i < model.Fields.Length; i++)
+                {
+                    var field = model.Fields[i];
+                    var suffix = i + 1 == model.Fields.Length ? ");" : ",";
+                    builder.AppendLine($"            {field.Name}{suffix}");
+                }
             }
         }
 
@@ -240,6 +276,21 @@ internal sealed class {{AttributeName}} : Attribute
                 _ => CompareKind.Equals,
             };
     }
+
+    internal static bool HasSimpleHashing(Compilation compilation)
+    {
+        var types = compilation.GetTypesByMetadataName("System.HashCode");
+        if (types.Length != 1)
+        {
+            return false;
+        }
+
+        var type = types[0];
+        return type
+            .GetMembers("Combine")
+            .OfType<IMethodSymbol>()
+            .Any(x => x.Arity == 7);
+    }
 }
 
 file enum CompareKind
@@ -249,24 +300,27 @@ file enum CompareKind
     CaseInsensitive,
 }
 
-file record struct FieldModel(string Name, string TypeFullName, CompareKind CompareKind);
+file record struct FieldModel(string Name, TypeKind TypeKind, string TypeFullName, CompareKind CompareKind);
 
 file sealed class EqualityModel
 {
     internal string? Namespace { get; }
     internal string TypeName { get; }
     internal bool IsClass { get; }
+    internal bool SimpleHashing { get; }
     internal FieldModel[] Fields { get; }
 
     internal EqualityModel(
         string? @namespace,
         string typeName,
         bool isClass,
+        bool simpleHashing,
         FieldModel[] fields)
     {
         Namespace = @namespace;
         TypeName = typeName;
         IsClass = isClass;
+        SimpleHashing = simpleHashing;
         Fields = fields;
     }
 }
@@ -290,7 +344,8 @@ file sealed class EqualityModelComparer : IEqualityComparer<EqualityModel?>
         return
             x.Namespace == y.Namespace &&
             x.TypeName == y.TypeName &&
-            x.IsClass == y.IsClass &&
+            x.IsClass == y.IsClass && 
+            x.SimpleHashing == y.SimpleHashing &&
             x.Fields.AsSpan().SequenceEqual(y.Fields.AsSpan());
     }
 

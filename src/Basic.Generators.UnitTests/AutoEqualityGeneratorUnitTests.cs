@@ -61,13 +61,9 @@ public class AutoEqualityGeneratorUnitTests
                         this.Field == other.Field;
                 }
 
-                public override int GetHashCode()
-                {
-                    var hash = new HashCode();
-                    hash.Add(Field);
-                    return hash.ToHashCode();
-                }
-
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field);
             }
             """;
 
@@ -114,13 +110,9 @@ public class AutoEqualityGeneratorUnitTests
                         this.Field == other.Field;
                 }
 
-                public override int GetHashCode()
-                {
-                    var hash = new HashCode();
-                    hash.Add(Field);
-                    return hash.ToHashCode();
-                }
-
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field);
             }
             """;
 
@@ -166,13 +158,9 @@ public class AutoEqualityGeneratorUnitTests
                         this.Field == other.Field;
                 }
 
-                public override int GetHashCode()
-                {
-                    var hash = new HashCode();
-                    hash.Add(Field);
-                    return hash.ToHashCode();
-                }
-
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field);
             }
             """;
 
@@ -215,7 +203,98 @@ public class AutoEqualityGeneratorUnitTests
             CoreReferences,
             expected,
             generatedTreeIndex: 1);
+    }
 
-        // GeneratorTestUtil.Verify(source, expected, generatedTreeIndex: 1);
+    [Fact]
+    public void GetHashCodeSimple()
+    {
+        var source = """
+            #pragma warning disable CS0649
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                int Field2;
+            }
+            """;
+
+        var expected = """
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field1,
+                        Field2);
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            CoreReferences,
+            expected,
+            generatedTreeIndex: 1);
+    }
+
+    [Fact]
+    public void GetHashCodeOldStructFields()
+    {
+        var source = """
+            #pragma warning disable CS0649
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                int Field2;
+            }
+            """;
+
+        var expected = """
+                public override int GetHashCode()
+                {
+                    int hash = 17;
+                    hash = (hash * 23) + Field1.GetHashCode();
+                    hash = (hash * 23) + Field2.GetHashCode();
+                    return hash;
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            FrameworkReferences,
+            expected,
+            generatedTreeIndex: 1);
+    }
+
+    [Fact]
+    public void GetHashCodeOldStructClass()
+    {
+        var source = """
+            #pragma warning disable CS0649
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                string Field2;
+            }
+            """;
+
+        var expected = """
+                public override int GetHashCode()
+                {
+                    int hash = 17;
+                    hash = (hash * 23) + Field1.GetHashCode();
+                    hash = (hash * 23) + (Field2?.GetHashCode() ?? 0);
+                    return hash;
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            FrameworkReferences,
+            expected,
+            generatedTreeIndex: 1);
     }
 }

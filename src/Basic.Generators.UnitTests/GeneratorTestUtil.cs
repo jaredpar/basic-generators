@@ -42,7 +42,7 @@ public sealed class GeneratorTestUtil
         var diagnostics = compilation
             .GetDiagnostics()
             .Where(x => x.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning);
-        Assert.Empty(diagnostics);
+        AssertEx.Empty(diagnostics);
     }
 
     public GeneratorDriverRunResult GetRunResult(string sourceCode, IEnumerable<MetadataReference> references)
@@ -75,7 +75,7 @@ public sealed class GeneratorTestUtil
         int generatedTreeIndex = 0)
     {
         var (_, generatedTree) = VerifyCore(sourceCode, references, generatedTreeIndex);
-        Assert.Equal(Trim(expectedGeneratedCode), Trim(generatedTree.ToString()));
+        AssertEx.CodeEquals(Trim(expectedGeneratedCode), Trim(generatedTree.ToString()));
     }
 
     public void VerifyMethod(
@@ -104,7 +104,7 @@ public sealed class GeneratorTestUtil
             })
             .Single();
 
-        Assert.Equal(Trim(expectedGeneratedCode), Trim(method.ToString()));
+        AssertEx.CodeEquals(Trim(expectedGeneratedCode), Trim(method.ToString()));
     }
 
     private static string Trim(string s) => s.Trim(' ', '\n', '\r');
