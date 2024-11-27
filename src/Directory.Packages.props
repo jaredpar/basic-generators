@@ -2,7 +2,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-    <_RoslynVersion>4.11.0</_RoslynVersion>
+    <_RoslynVersion>4.8.0</_RoslynVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Basic.Reference.Assemblies.Net80" Version="1.7.9" />
@@ -10,9 +10,6 @@
     <PackageVersion Include="coverlet.msbuild" Version="6.0.2" />
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="$(_RoslynVersion)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="$(_RoslynVersion)" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Features" Version="$(_RoslynVersion)" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic" Version="$(_RoslynVersion)" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Features" Version="$(_RoslynVersion)" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.3.2" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
