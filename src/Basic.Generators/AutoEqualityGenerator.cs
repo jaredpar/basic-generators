@@ -66,10 +66,11 @@ internal sealed class {{AttributeName}} : Attribute
                 attribute.ConstructorArguments.Length > 0 &&
                 attribute.ConstructorArguments[0].Value is true;
 
+            var typeUtil = TypeUtil.GetOrCreate(context.SemanticModel.Compilation);
             var fields = symbol
                 .GetMembers()
                 .OfType<IFieldSymbol>()
-                .Select(x => new FieldModel(x.Name, x.Type?.TypeKind ?? TypeKind.Unknown, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", UseOperatorField(x, caseInsensitive)))
+                .Select(x => new FieldModel(x.Name, x.Type?.TypeKind ?? TypeKind.Unknown, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", GetEqualityKind(x.Type, typeUtil, caseInsensitive)))
                 .ToArray();
 
             var @namespace = symbol.ContainingNamespace.IsGlobalNamespace
@@ -89,12 +90,19 @@ internal sealed class {{AttributeName}} : Attribute
             var builder = new CodeBuilder();
             var annotatedName = model.IsClass ? $"{model.TypeName}?" : model.TypeName;
 
-            builder.Append($$"""
+            builder.AppendLine($$"""
                 using System;
                 using System.Collections.Generic;
+                """);
+            
+            if (model.Fields.Any(x => x.EqualityKind == EqualityKind.SequenceEqual))
+            {
+                builder.AppendLine("using System.Linq;");
+            }
+
+            builder.AppendLine("""
 
                 #nullable enable
-
 
                 """);
 
@@ -163,14 +171,7 @@ internal sealed class {{AttributeName}} : Attribute
                 {
                     var field = model.Fields[i];
                     var name = field.Name;
-                    var comp = field.CompareKind switch
-                    {
-                        CompareKind.Operator => $"this.{name} == other.{name}",
-                        CompareKind.CaseInsensitive => $"string.Equals(this.{name}, other.{name}, StringComparison.OrdinalIgnoreCase)",
-                        CompareKind.Equals => $"EqualityComparer<{field.TypeFullName}>.Default.Equals(this.{name}, other.{name})",
-                        _ => throw new Exception($"invalid {field.CompareKind}")
-                    };
-
+                    var comp = GetEqualsExpression(field.EqualityKind, name, field.TypeFullName);
                     builder.Append(12, comp);
                     if (i + 1 == model.Fields.Length)
                     {
@@ -247,31 +248,19 @@ internal sealed class {{AttributeName}} : Attribute
                 }
             }
         }
+    }
 
-        static CompareKind UseOperatorField(IFieldSymbol field, bool caseInsensitive)
+    internal static string GetEqualsExpression(EqualityKind kind, string memberName, string typeFullName)
+    {
+        return kind switch
         {
-            if (!(field.Type is { } type))
-            {
-                return CompareKind.Equals;
-            }
-
-            return UseOperatorType(type.SpecialType, caseInsensitive);
-        }
-
-        static CompareKind UseOperatorType(SpecialType specialType, bool caseInsensitive) =>
-            specialType switch
-            {
-                SpecialType.System_Int16 => CompareKind.Operator,
-                SpecialType.System_Int32 => CompareKind.Operator,
-                SpecialType.System_Int64 => CompareKind.Operator,
-                SpecialType.System_UInt16 => CompareKind.Operator,
-                SpecialType.System_UInt32 => CompareKind.Operator,
-                SpecialType.System_UInt64 => CompareKind.Operator,
-                SpecialType.System_IntPtr => CompareKind.Operator,
-                SpecialType.System_UIntPtr => CompareKind.Operator,
-                SpecialType.System_String => caseInsensitive ? CompareKind.CaseInsensitive : CompareKind.Operator,
-                _ => CompareKind.Equals,
-            };
+            EqualityKind.Operator => $"this.{memberName} == other.{memberName}",
+            EqualityKind.StringCaseSensitive => $"this.{memberName} == other.{memberName}",
+            EqualityKind.StringCaseInsensitive => $"string.Equals(this.{memberName}, other.{memberName}, StringComparison.OrdinalIgnoreCase)",
+            EqualityKind.Default => $"EqualityComparer<{typeFullName}>.Default.Equals(this.{memberName}, other.{memberName})",
+            EqualityKind.SequenceEqual => $"Enumerable.SequenceEqual(this.{memberName}, other.{memberName})",
+            _ => throw new Exception($"invalid {kind}")
+        };
     }
 
     internal static bool HasSimpleHashing(Compilation compilation)
@@ -288,63 +277,40 @@ internal sealed class {{AttributeName}} : Attribute
             .OfType<IMethodSymbol>()
             .Any(x => x.Arity == 7);
     }
-}
 
-file enum CompareKind
-{
-    Operator,
-    Equals,
-    CaseInsensitive,
-}
-
-file record struct FieldModel(string Name, TypeKind TypeKind, string TypeFullName, CompareKind CompareKind);
-
-file sealed class EqualityModel
-{
-    internal string? Namespace { get; }
-    internal string TypeName { get; }
-    internal bool IsClass { get; }
-    internal bool SimpleHashing { get; }
-    internal FieldModel[] Fields { get; }
-
-    internal EqualityModel(
-        string? @namespace,
-        string typeName,
-        bool isClass,
-        bool simpleHashing,
-        FieldModel[] fields)
+    internal static EqualityKind GetEqualityKind(ITypeSymbol? typeSymbol, TypeUtil typeUtil, bool caseInsensitive)
     {
-        Namespace = @namespace;
-        TypeName = typeName;
-        IsClass = isClass;
-        SimpleHashing = simpleHashing;
-        Fields = fields;
-    }
-}
-
-file sealed class EqualityModelComparer : IEqualityComparer<EqualityModel?>
-{
-    internal static readonly EqualityModelComparer Instance = new();
-
-    public bool Equals(EqualityModel? x, EqualityModel? y)
-    {
-        if (ReferenceEquals(x, y))
+        if (typeSymbol is null)
         {
-            return true;
+            return EqualityKind.Default;
         }
 
-        if (x is null || y is null)
+        if (GetOperatorType(typeSymbol.SpecialType, caseInsensitive) is { } op)
         {
-            return false;
+            return op;
         }
 
-        return
-            x.Namespace == y.Namespace &&
-            x.TypeName == y.TypeName &&
-            x.IsClass == y.IsClass && 
-            x.SimpleHashing == y.SimpleHashing &&
-            x.Fields.AsSpan().SequenceEqual(y.Fields.AsSpan());
+        if (typeUtil.IEnumerableT is { } ienumerableT && 
+            RoslynUtil.DoesTypeImplementOriginal(typeSymbol.OriginalDefinition, ienumerableT))
+        {
+            return EqualityKind.SequenceEqual;
+        }
+
+        return EqualityKind.Default;
     }
 
-    public int GetHashCode(EqualityModel? obj) => obj?.TypeName.GetHashCode() ?? 0;
+    internal static EqualityKind? GetOperatorType(SpecialType specialType, bool caseInsensitive) =>
+        specialType switch
+        {
+            SpecialType.System_Int16 => EqualityKind.Operator,
+            SpecialType.System_Int32 => EqualityKind.Operator,
+            SpecialType.System_Int64 => EqualityKind.Operator,
+            SpecialType.System_UInt16 => EqualityKind.Operator,
+            SpecialType.System_UInt32 => EqualityKind.Operator,
+            SpecialType.System_UInt64 => EqualityKind.Operator,
+            SpecialType.System_IntPtr => EqualityKind.Operator,
+            SpecialType.System_UIntPtr => EqualityKind.Operator,
+            SpecialType.System_String => caseInsensitive ? EqualityKind.StringCaseInsensitive : EqualityKind.StringCaseSensitive,
+            _ => null,
+        };
 }
