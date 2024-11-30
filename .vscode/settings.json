@@ -1,3 +1,8 @@
 {
-    "dotnet.defaultSolution": "Basic.Generators.sln"
+    "dotnet.defaultSolution": "Basic.Generators.sln",
+    "cSpell.words": [
+        "ienumerable",
+        "netstandard",
+        "XUNIT"
+    ]
 }

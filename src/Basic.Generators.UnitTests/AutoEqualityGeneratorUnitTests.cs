@@ -168,7 +168,7 @@ public class AutoEqualityGeneratorUnitTests
     }
 
     [Fact]
-    public void OperatorAndEquals()
+    public void EqualsOperatorPrimitives()
     {
         var source = """
             namespace Example;
@@ -194,6 +194,44 @@ public class AutoEqualityGeneratorUnitTests
                         this.Field1 == other.Field1 &&
                         EqualityComparer<object>.Default.Equals(this.Field2, other.Field2) &&
                         string.Equals(this.Field3, other.Field3, StringComparison.OrdinalIgnoreCase);
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "bool Simple.Equals(Simple? other)",
+            source,
+            CoreReferences,
+            expected,
+            generatedTreeIndex: 1);
+    }
+
+    [Theory]
+    [InlineData("int[]")]
+    [InlineData("IEnumerable<int>")]
+    [InlineData("List<char>")]
+    public void EqualsCollections(string typeName)
+    {
+        var source = $$"""
+            namespace Example;
+            using System.Collections.Generic;
+
+            #pragma warning disable CS0649
+
+            [AutoEquality(true)]
+            partial class Simple
+            {
+                {{typeName}} Field;
+            }
+            """;
+
+        var expected = """
+                public bool Equals(Simple? other)
+                {
+                    if (other is null)
+                        return false;
+
+                    return
+                        Enumerable.SequenceEqual(this.Field, other.Field);
                 }
             """;
 
