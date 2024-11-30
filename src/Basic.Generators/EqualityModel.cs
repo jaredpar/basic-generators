@@ -36,7 +36,11 @@ internal enum EqualityKind
     SequenceEqual,
 }
 
-internal record struct FieldModel(string Name, TypeKind TypeKind, string TypeFullName, EqualityKind EqualityKind);
+internal sealed record class FieldModel(
+    string Name,
+    TypeKind TypeKind,
+    string TypeFullName,
+    EqualityKind EqualityKind);
 
 internal sealed class EqualityModel
 {
