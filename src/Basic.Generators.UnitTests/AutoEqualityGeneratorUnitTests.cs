@@ -208,6 +208,7 @@ public class AutoEqualityGeneratorUnitTests
     [Theory]
     [InlineData("int[]")]
     [InlineData("IEnumerable<int>")]
+    [InlineData("List<char>")]
     public void EqualsCollections(string typeName)
     {
         var source = $$"""
