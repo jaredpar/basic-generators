@@ -6,9 +6,9 @@ internal static class RoslynUtil
 {
     /// <summary>
     /// Does the type in question implement the provided interface? This will consider original
-    /// definitions, not the substitued ones.
+    /// definitions, not the substituted ones.
     /// </summary>
-    internal static bool DoesTypeImplementOriginal(ITypeSymbol typeSymbol, ITypeSymbol interfaceSymbol)
+    internal static bool IsOrImplementsOriginal(ITypeSymbol typeSymbol, ITypeSymbol interfaceSymbol)
     {
         Debug.Assert(interfaceSymbol.Equals(interfaceSymbol.OriginalDefinition, SymbolEqualityComparer.Default));
 
@@ -17,27 +17,16 @@ internal static class RoslynUtil
             return true;
         }
 
-        var currentType = typeSymbol;
-        do
+        foreach (var currentInterface in typeSymbol.OriginalDefinition.AllInterfaces)
         {
-            foreach (var currentInterface in currentType.Interfaces)
+            if (currentInterface.OriginalDefinition is { } originalInterface)
             {
-                if (currentInterface.OriginalDefinition is { } originalInterface)
+                if (originalInterface.Equals(interfaceSymbol, SymbolEqualityComparer.Default))
                 {
-                    if (originalInterface.Equals(interfaceSymbol, SymbolEqualityComparer.Default))
-                    {
-                        return true;
-                    }
-
-                    if (DoesTypeImplementOriginal(originalInterface, interfaceSymbol))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
-
-            currentType = currentType.BaseType;
-        } while (currentType is not null);
+        }
 
         return false;
     }

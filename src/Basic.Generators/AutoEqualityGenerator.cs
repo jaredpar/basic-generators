@@ -291,7 +291,7 @@ internal sealed class {{AttributeName}} : Attribute
         }
 
         if (typeUtil.IEnumerableT is { } ienumerableT && 
-            RoslynUtil.DoesTypeImplementOriginal(typeSymbol.OriginalDefinition, ienumerableT))
+            RoslynUtil.IsOrImplementsOriginal(typeSymbol.OriginalDefinition, ienumerableT))
         {
             return EqualityKind.SequenceEqual;
         }
