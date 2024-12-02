@@ -14,8 +14,8 @@ namespace Basic.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class AutoEqualityGenerator : IIncrementalGenerator
 {
-    private const string AttributeName = "AutoEqualityAttribute";
-    private const string AttributeMetadataName = AttributeName;
+    private const string AutoEqualityAttributeName = "AutoEqualityAttribute";
+    private const string AutoEqualityMemberAttributeName = "AutoEqualityMemberAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -26,19 +26,38 @@ public sealed class AutoEqualityGenerator : IIncrementalGenerator
                 $$"""
 using System;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
-internal sealed class {{AttributeName}} : Attribute
+internal sealed class {{AutoEqualityAttributeName}} : Attribute
 {
-    public bool CaseInsensitive { get; set; }
-
-    public AutoEqualityAttribute(bool caseInsensitive = false) =>
-        CaseInsensitive = caseInsensitive;
+    public AutoEqualityAttribute()
+    {
+    }
 }
+
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
+{
+    public AutoEqualityKind Kind { get; set; }
+    public AutoEqualityMemberAttribute(AutoEqualityKind kind)
+    {
+        Kind = kind;
+    }
+}
+
+internal enum AutoEqualityKind
+{
+    None = 0,
+    Default = 1,
+    CaseSensitive = 2,
+    CaseInsensitive = 3,
+    Sequence = 4
+}
+
 """);
         });
 
         var results = context.SyntaxProvider
             .ForAttributeWithMetadataName(
-                AttributeMetadataName,
+                AutoEqualityAttributeName,
                 CheckEqualityModel,
                 GetEqualityModel)
             .Where(x => x is not null)
@@ -56,22 +75,21 @@ internal sealed class {{AttributeName}} : Attribute
                 return null;
             }
 
-            var attribute = context.Attributes.FirstOrDefault(x => x.AttributeClass?.Name == AttributeName);
-            if (attribute is null)
-            {
-                return null;
-            }
-
-            var caseInsensitive =
-                attribute.ConstructorArguments.Length > 0 &&
-                attribute.ConstructorArguments[0].Value is true;
-
             var typeUtil = TypeUtil.GetOrCreate(context.SemanticModel.Compilation);
-            var fields = symbol
-                .GetMembers()
-                .OfType<IFieldSymbol>()
-                .Select(x => new FieldModel(x.Name, x.Type?.TypeKind ?? TypeKind.Unknown, x.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "", GetEqualityKind(x.Type, typeUtil, caseInsensitive)))
-                .ToArray();
+            var list = new List<FieldModel>();
+            foreach (var field in symbol.GetMembers().OfType<IFieldSymbol>())
+            {
+                if (GetEqualityKind(symbol, symbol, typeUtil) is not EqualityKind equalityKind)
+                {
+                    continue;
+                }
+
+                list.Add(new FieldModel(
+                    field.Name,
+                    field.Type?.TypeKind ?? TypeKind.Unknown,
+                    field.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "",
+                    equalityKind));
+            }
 
             var @namespace = symbol.ContainingNamespace.IsGlobalNamespace
                 ? null
@@ -82,7 +100,7 @@ internal sealed class {{AttributeName}} : Attribute
                 symbol.Name,
                 symbol.TypeKind == TypeKind.Class,
                 simpleHashing: HasSimpleHashing(context.SemanticModel.Compilation),
-                fields);
+                list.ToArray());
         }
 
         static void WriteEqualityModel(SourceProductionContext context, EqualityModel model)
@@ -278,14 +296,23 @@ internal sealed class {{AttributeName}} : Attribute
             .Any(x => x.Arity == 7);
     }
 
-    internal static EqualityKind GetEqualityKind(ITypeSymbol? typeSymbol, TypeUtil typeUtil, bool caseInsensitive)
+    internal static EqualityKind? GetEqualityKind(ISymbol symbol, ITypeSymbol? typeSymbol, TypeUtil typeUtil)
     {
         if (typeSymbol is null)
         {
             return EqualityKind.Default;
         }
 
-        if (GetOperatorType(typeSymbol.SpecialType, caseInsensitive) is { } op)
+        if (GetEqualityKindFromAttribute(symbol) is { } tuple)
+        {
+            if (tuple.IsNone)
+            {
+                return null;
+            }
+            return tuple.Kind;
+        }
+
+        if (GetOperatorType(typeSymbol.SpecialType) is { } op)
         {
             return op;
         }
@@ -299,7 +326,29 @@ internal sealed class {{AttributeName}} : Attribute
         return EqualityKind.Default;
     }
 
-    internal static EqualityKind? GetOperatorType(SpecialType specialType, bool caseInsensitive) =>
+    internal static (bool IsNone, EqualityKind Kind)? GetEqualityKindFromAttribute(ISymbol symbol)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass?.Name == AutoEqualityMemberAttributeName)
+            {
+                return attribute.ConstructorArguments[0].Value switch
+                {
+                    0 => (true, EqualityKind.Default),
+                    1 => (false, EqualityKind.Default),
+                    2 => (false, EqualityKind.StringCaseSensitive),
+                    3 => (false, EqualityKind.StringCaseInsensitive),
+                    4 => (false, EqualityKind.SequenceEqual),
+                    // TODO: need an analyzer error here
+                    _ => null,
+                };
+            }
+        }
+
+        return null;
+    }
+
+    internal static EqualityKind? GetOperatorType(SpecialType specialType) =>
         specialType switch
         {
             SpecialType.System_Int16 => EqualityKind.Operator,
@@ -310,7 +359,7 @@ internal sealed class {{AttributeName}} : Attribute
             SpecialType.System_UInt64 => EqualityKind.Operator,
             SpecialType.System_IntPtr => EqualityKind.Operator,
             SpecialType.System_UIntPtr => EqualityKind.Operator,
-            SpecialType.System_String => caseInsensitive ? EqualityKind.StringCaseInsensitive : EqualityKind.StringCaseSensitive,
+            SpecialType.System_String => EqualityKind.StringCaseSensitive,
             _ => null,
         };
 }
