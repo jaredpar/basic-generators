@@ -11,6 +11,8 @@
     <RepositoryUrl>https://github.com/jaredpar/basic-generators</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="EqualityKind.cs" LogicalName="Basic.Generators.EqualityAttribute" />
+
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
 
     <!--

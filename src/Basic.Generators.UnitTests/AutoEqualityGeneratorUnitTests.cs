@@ -175,11 +175,12 @@ public class AutoEqualityGeneratorUnitTests
 
             #pragma warning disable CS0649
 
-            [AutoEquality(true)]
+            [AutoEquality]
             partial class Simple
             {
                 int Field1;
                 object Field2;
+                [AutoEqualityMember(AutoEqualityKind.Ordinal)]
                 string Field3;
             }
             """;
@@ -193,7 +194,7 @@ public class AutoEqualityGeneratorUnitTests
                     return
                         this.Field1 == other.Field1 &&
                         EqualityComparer<object>.Default.Equals(this.Field2, other.Field2) &&
-                        string.Equals(this.Field3, other.Field3, StringComparison.OrdinalIgnoreCase);
+                        this.Field3 == other.Field3;
                 }
             """;
 
@@ -217,7 +218,7 @@ public class AutoEqualityGeneratorUnitTests
 
             #pragma warning disable CS0649
 
-            [AutoEquality(true)]
+            [AutoEquality]
             partial class Simple
             {
                 {{typeName}} Field;
@@ -335,4 +336,56 @@ public class AutoEqualityGeneratorUnitTests
             expected,
             generatedTreeIndex: 1);
     }
+
+    [Fact]
+    public void MemberSequence()
+    {
+        var source = """
+            #pragma warning disable CS0649
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                [AutoEqualityMember(AutoEqualityKind.OrdinalIgnoreCase)]
+                string Field2;
+            }
+            """;
+
+        var expectedHashCode = """
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field1,
+                        StringComparer.OrdinalIgnoreCase.GetHashCode(Field2));
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            CoreReferences,
+            expectedHashCode,
+            generatedTreeIndex: 1);
+
+        var expectedEquals = """
+                public bool Equals(Simple? other)
+                {
+                    if (other is null)
+                        return false;
+
+                    return
+                        this.Field1 == other.Field1 &&
+                        StringComparer.OrdinalIgnoreCase.Equals(this.Field2, other.Field2);
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "bool Simple.Equals(Simple? other)",
+            source,
+            CoreReferences,
+            expectedEquals,
+            generatedTreeIndex: 1);
+    }
+
+    // TODO: test none
+    // TODO: test use the string comparison enum names
 }

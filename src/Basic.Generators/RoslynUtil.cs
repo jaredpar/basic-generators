@@ -1,5 +1,8 @@
 
+using System;
+using System.Linq;
 using System.Diagnostics;
+using Basic.Generators;
 using Microsoft.CodeAnalysis;
 
 internal static class RoslynUtil
@@ -29,5 +32,18 @@ internal static class RoslynUtil
         }
 
         return false;
+    }
+
+    internal static bool HasSimpleHashing(TypeUtil typeUtil)
+    {
+        if (typeUtil.HashCode is not { } type)
+        {
+            return false;
+        }
+
+        return type
+            .GetMembers("Combine")
+            .OfType<IMethodSymbol>()
+            .Any(x => x.Arity == 7);
     }
 }
