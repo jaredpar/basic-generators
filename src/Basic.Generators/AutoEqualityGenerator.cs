@@ -18,6 +18,8 @@ public sealed class AutoEqualityGenerator : IIncrementalGenerator
     private const string AutoEqualityAttributeName = "AutoEqualityAttribute";
     private const string AutoEqualityMemberAttributeName = "AutoEqualityMemberAttribute";
 
+    private static readonly Lazy<string> s_autoEqualityKindCode = new(GetAutoEqualityKindCode);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         context.RegisterPostInitializationOutput(callback =>
@@ -44,7 +46,7 @@ internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
     }
 }
 
-{{GetAutoEqualityKindCode()}}
+{{s_autoEqualityKindCode.Value}}
 
 """);
         });
@@ -166,7 +168,6 @@ internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
             _ => null,
         };
 
-    // TODO: change this so that it's run once and cached
     internal static string GetAutoEqualityKindCode()
     {
         var builder = new StringBuilder();
