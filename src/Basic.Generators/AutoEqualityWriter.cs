@@ -18,7 +18,7 @@ internal static class AutoEqualityWriter
             using System.Collections.Generic;
             """);
         
-        if (model.Fields.Any(x => x.EqualityKind == EqualityKind.SequenceEqual))
+        if (model.DataMembers.Any(x => x.EqualityKind == EqualityKind.SequenceEqual))
         {
             builder.AppendLine("using System.Linq;");
         }
@@ -66,17 +66,17 @@ internal static class AutoEqualityWriter
 
     }
 
-    internal static IEnumerable<(FieldModel FieldModel, int Index)> GetFields(EqualityModel model)
+    internal static IEnumerable<(DataMemberModel DataMemberModel, int Index)> GetDataMembers(EqualityModel model)
     {
         var index = 0;
-        foreach (var field in model.Fields)
+        foreach (var member in model.DataMembers)
         {
-            if (field.EqualityKind == EqualityKind.None)
+            if (member.EqualityKind == EqualityKind.None)
             {
                 continue;
             }
 
-            yield return (field, index);
+            yield return (member, index);
             index++;
         }
     }
@@ -108,15 +108,15 @@ internal static class AutoEqualityWriter
                 """);
         }
 
-        foreach (var (field, index) in GetFields(model))
+        foreach (var (member, index) in GetDataMembers(model))
         {
             if (index > 0)
             {
                 builder.AppendLine(" &&");
             }
 
-            var name = field.Name;
-            var comp = GetEqualsExpression(field.EqualityKind, name, field.TypeFullName);
+            var name = member.Name;
+            var comp = GetEqualsExpression(member.EqualityKind, name, member.TypeFullName);
             builder.Append(12, comp);
         }
 
@@ -147,21 +147,21 @@ internal static class AutoEqualityWriter
 
                 """);
 
-            foreach (var (field, index) in GetFields(model))
+            foreach (var (member, index) in GetDataMembers(model))
             {
                 if (index > 0)
                 {
                     builder.AppendLine(",");
                 }
 
-                if (EqualityKindUtil.IsStringEquality(field.EqualityKind))
+                if (EqualityKindUtil.IsStringEquality(member.EqualityKind))
                 {
-                    var typeName = EqualityKindUtil.GetStringComparerTypeName(field.EqualityKind);
-                    builder.Append(12, $"{typeName}.GetHashCode({field.Name})");
+                    var typeName = EqualityKindUtil.GetStringComparerTypeName(member.EqualityKind);
+                    builder.Append(12, $"{typeName}.GetHashCode({member.Name})");
                 }
                 else
                 {
-                    builder.Append(12, field.Name);
+                    builder.Append(12, member.Name);
                 }
             }
 
@@ -177,20 +177,20 @@ internal static class AutoEqualityWriter
 
                 """);
 
-            foreach (var (field, index) in GetFields(model))
+            foreach (var (member, index) in GetDataMembers(model))
             {
-                if (field.EqualityKind != EqualityKind.Ordinal && EqualityKindUtil.IsStringEquality(field.EqualityKind))
+                if (member.EqualityKind != EqualityKind.Ordinal && EqualityKindUtil.IsStringEquality(member.EqualityKind))
                 {
-                    var typeName = EqualityKindUtil.GetStringComparerTypeName(field.EqualityKind);
-                    builder.AppendLine(8, $"hash = (hash * 23) + {typeName}.GetHashCode({field.Name});");
+                    var typeName = EqualityKindUtil.GetStringComparerTypeName(member.EqualityKind);
+                    builder.AppendLine(8, $"hash = (hash * 23) + {typeName}.GetHashCode({member.Name});");
                 }
-                else if (field.TypeKind is TypeKind.Enum or TypeKind.Struct or TypeKind.Structure)
+                else if (member.TypeKind is TypeKind.Enum or TypeKind.Struct or TypeKind.Structure)
                 {
-                    builder.AppendLine(8, $"hash = (hash * 23) + {field.Name}.GetHashCode();");
+                    builder.AppendLine(8, $"hash = (hash * 23) + {member.Name}.GetHashCode();");
                 }
                 else
                 {
-                    builder.AppendLine(8, $"hash = (hash * 23) + ({field.Name}?.GetHashCode() ?? 0);");
+                    builder.AppendLine(8, $"hash = (hash * 23) + ({member.Name}?.GetHashCode() ?? 0);");
                 }
             }
 

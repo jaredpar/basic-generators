@@ -4,7 +4,7 @@ Collection of roslyn source generators and analyzers.
 
 ## AutoEquality
 
-This generator automatically adds equality to types annotated with `[AutoEquality]`
+This generator adds value equality behaviors to types annotated with `[AutoEquality]`
 
 ```csharp
 [AutoEquality]
@@ -50,4 +50,4 @@ Individual members can customize their equality with the `[AutoEqualityMember]` 
 | InvariantCultureIgnoreCase | Uses `InvariantCultureIgnoreCase` comparer. Only applicable on `string` types |
 | Sequence | Compare the sequence of elements. The type in question must have a `SequenceEquals` extension method |
 
-Any field or property that has a `get` and a `set / init` member will be considered for equality.
+The generator will consider any field for equality or properties that have a `get` and a `set / init` accessor.

@@ -36,7 +36,7 @@ internal sealed class {{AutoEqualityAttributeName}} : Attribute
     }
 }
 
-[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
 internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
 {
     public AutoEqualityKind Kind { get; set; }
@@ -72,18 +72,19 @@ internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
             }
 
             var typeUtil = TypeUtil.GetOrCreate(context.SemanticModel.Compilation);
-            var list = new List<FieldModel>();
-            foreach (var field in symbol.GetMembers().OfType<IFieldSymbol>())
+            var list = new List<DataMemberModel>();
+
+            foreach (var (memberSymbol, memberType) in GetDataMembers(symbol))
             {
-                if (GetEqualityKind(field, field.Type, typeUtil) is not EqualityKind equalityKind)
+                if (GetEqualityKind(memberSymbol, memberType, typeUtil) is not EqualityKind equalityKind)
                 {
                     continue;
                 }
 
-                list.Add(new FieldModel(
-                    field.Name,
-                    field.Type?.TypeKind ?? TypeKind.Unknown,
-                    field.Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "",
+                list.Add(new DataMemberModel(
+                    memberSymbol.Name,
+                    memberType?.TypeKind ?? TypeKind.Unknown,
+                    memberType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? "",
                     equalityKind));
             }
 
@@ -97,6 +98,27 @@ internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
                 symbol.TypeKind == TypeKind.Class,
                 simpleHashing: RoslynUtil.HasSimpleHashing(typeUtil),
                 list.ToArray());
+        }
+    }
+
+    /// <summary>
+    /// Get all of the <see cref="ISymbol"/> members that should be considered for equality.
+    /// </summary>
+    internal static IEnumerable<(ISymbol Symbol, ITypeSymbol? Type)> GetDataMembers(INamedTypeSymbol typeSymbol)
+    {
+        foreach (var symbol in typeSymbol.GetMembers())
+        {
+            if (symbol is IFieldSymbol { AssociatedSymbol: null } fieldSymbol)
+            {
+                yield return (fieldSymbol, fieldSymbol.Type);
+            }
+            else if (
+                symbol is IPropertySymbol propertySymbol &&
+                propertySymbol.GetMethod is not null &&
+                (propertySymbol.SetMethod is not null || GetEqualityKindFromAttribute(propertySymbol) is not null))
+            {
+                yield return (propertySymbol, propertySymbol.Type);
+            }
         }
     }
 
