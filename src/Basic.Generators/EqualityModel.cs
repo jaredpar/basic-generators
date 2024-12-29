@@ -1,40 +1,8 @@
-
 using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
 namespace Basic.Generators;
-
-/// <summary>
-/// The kind of equality that should be used for a member
-/// </summary>
-internal enum EqualityKind
-{
-    /// <summary>
-    /// Use simple null checks and .Equals calls
-    /// </summary>
-    Default,
-
-    /// <summary>
-    /// Use the == / != operators
-    /// </summary>
-    Operator,
-
-    /// <summary>
-    /// Compare strings with case sensitive equality
-    /// </summary>
-    StringCaseSensitive,
-
-    /// <summary>
-    /// Compare the strings with case insensitive equality
-    /// </summary>
-    StringCaseInsensitive,
-
-    /// <summary>
-    /// Use Enumerable.SequenceEqual for the comparison
-    /// </summary>
-    SequenceEqual,
-}
 
 internal sealed record class FieldModel(
     string Name,

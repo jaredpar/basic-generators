@@ -28,10 +28,26 @@ partial class Person : IEquatable<Person?>
 }
 ```
 
-This attribute is meant to make value equality easier and will generate equality code aimed towards that goal. This means it will compare collections by value, and not by reference. This table shows the defaults for various types:
+This generator automates value equality for types and has defaults that support that goal. For example it will compare collections by value, not by reference. This table shows the defaults for various types:
 
 | Type | Default Equality |
 | --- | --- |
 | Types implementing `IEnumerable<T>` | Sequence equality |
 | `string` | Case sensitive |
 | Primitive types | Value equality |
+
+Individual members can customize their equality with the `[AutoEqualityMember]` attribute by specifying the `AutoEqualityKind` value:
+
+| AutoEqualityKind | Description |
+| --- | --- |
+| None | This member is not considered for equality |
+| Default | Use the default for this member |
+| Ordinal | Uses `Ordinal` comparer. Only applicable on `string` types |
+| OrdinalIgnoreCase | Uses `OrdinalIgnoreCase` comparer. Only applicable on `string` types |
+| CurrentCulture | Uses `CurrentCulture` comparer. Only applicable on `string` types |
+| CurrentCultureIgnoreCase | Uses `CurrentCultureIgnoreCase` comparer. Only applicable on `string` types |
+| InvariantCulture | Uses `InvariantCulture` comparer. Only applicable on `string` types |
+| InvariantCultureIgnoreCase | Uses `InvariantCultureIgnoreCase` comparer. Only applicable on `string` types |
+| Sequence | Compare the sequence of elements. The type in question must have a `SequenceEquals` extension method |
+
+Any field or property that has a `get` and a `set / init` member will be considered for equality.

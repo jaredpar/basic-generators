@@ -175,11 +175,12 @@ public class AutoEqualityGeneratorUnitTests
 
             #pragma warning disable CS0649
 
-            [AutoEquality(true)]
+            [AutoEquality]
             partial class Simple
             {
                 int Field1;
                 object Field2;
+                [AutoEqualityMember(AutoEqualityKind.Ordinal)]
                 string Field3;
             }
             """;
@@ -193,7 +194,7 @@ public class AutoEqualityGeneratorUnitTests
                     return
                         this.Field1 == other.Field1 &&
                         EqualityComparer<object>.Default.Equals(this.Field2, other.Field2) &&
-                        string.Equals(this.Field3, other.Field3, StringComparison.OrdinalIgnoreCase);
+                        this.Field3 == other.Field3;
                 }
             """;
 
@@ -217,7 +218,7 @@ public class AutoEqualityGeneratorUnitTests
 
             #pragma warning disable CS0649
 
-            [AutoEquality(true)]
+            [AutoEquality]
             partial class Simple
             {
                 {{typeName}} Field;
@@ -334,5 +335,141 @@ public class AutoEqualityGeneratorUnitTests
             FrameworkReferences,
             expected,
             generatedTreeIndex: 1);
+    }
+
+    [Fact]
+    public void MemberSequence()
+    {
+        var source = """
+            #pragma warning disable CS0649
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                [AutoEqualityMember(AutoEqualityKind.OrdinalIgnoreCase)]
+                string Field2;
+            }
+            """;
+
+        var expectedHashCode = """
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field1,
+                        StringComparer.OrdinalIgnoreCase.GetHashCode(Field2));
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            CoreReferences,
+            expectedHashCode,
+            generatedTreeIndex: 1);
+
+        var expectedEquals = """
+                public bool Equals(Simple? other)
+                {
+                    if (other is null)
+                        return false;
+
+                    return
+                        this.Field1 == other.Field1 &&
+                        StringComparer.OrdinalIgnoreCase.Equals(this.Field2, other.Field2);
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "bool Simple.Equals(Simple? other)",
+            source,
+            CoreReferences,
+            expectedEquals,
+            generatedTreeIndex: 1);
+    }
+
+    [Fact]
+    public void MemberNone()
+    {
+        var source = """
+            #pragma warning disable CS0649
+            #pragma warning disable CS0169
+
+            [AutoEquality]
+            partial class Simple
+            {
+                int Field1;
+                [AutoEqualityMember(AutoEqualityKind.None)]
+                string Field2;
+            }
+            """;
+
+        var expectedHashCode = """
+                public override int GetHashCode() =>
+                    HashCode.Combine(
+                        Field1);
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "int Simple.GetHashCode()",
+            source,
+            CoreReferences,
+            expectedHashCode,
+            generatedTreeIndex: 1);
+
+        var expectedEquals = """
+                public bool Equals(Simple? other)
+                {
+                    if (other is null)
+                        return false;
+
+                    return
+                        this.Field1 == other.Field1;
+                }
+            """;
+
+        GeneratorTestUtil.VerifyMethod(
+            "bool Simple.Equals(Simple? other)",
+            source,
+            CoreReferences,
+            expectedEquals,
+            generatedTreeIndex: 1);
+    }
+
+    [Theory]
+    [InlineData("Ordinal", "test", "test", "diff")]
+    [InlineData("OrdinalIgnoreCase", "test", "TEST", "diff")]
+    [InlineData("InvariantCulture", "test", "test", "diff")]
+    [InlineData("InvariantCultureIgnoreCase", "test", "TEST", "diff")]
+    [InlineData("CurrentCulture", "test", "test", "diff")]
+    [InlineData("CurrentCultureIgnoreCase", "test", "TEST", "diff")]
+    public void MemberString(string kind, string value, string valueEqual, string valueDifferent)
+    {
+        var code = $$"""
+            #pragma warning disable CS0649
+            using System;
+
+            var v1 = new Simple("{{value}}");
+            var v2 = new Simple("{{valueEqual}}");
+            var v3 = new Simple("{{valueDifferent}}");
+
+            Test(v1 == v2);
+            Test(v2 == v1);
+            Test(v1 == v3);
+
+            void Test(bool cond)
+            {
+                Console.Write(cond ? "1" : "0");
+            }
+
+            [AutoEquality]
+            partial class Simple(string field)
+            {
+                [AutoEqualityMember(AutoEqualityKind.{{kind}})]
+                public string Field = field;
+            }
+            """;
+        GeneratorTestUtil.VerifyOutput(
+            code,
+            CoreReferences,
+            "110");
     }
 }
