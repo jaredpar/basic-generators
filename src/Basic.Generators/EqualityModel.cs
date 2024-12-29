@@ -4,7 +4,11 @@ using Microsoft.CodeAnalysis;
 
 namespace Basic.Generators;
 
-internal sealed record class FieldModel(
+/// <summary>
+/// Represents a member of the type that needs to be considered for equality. This
+/// can be a field or a property.
+/// </summary>
+internal sealed record class DataMemberModel(
     string Name,
     TypeKind TypeKind,
     string TypeFullName,
@@ -16,20 +20,20 @@ internal sealed class EqualityModel
     internal string TypeName { get; }
     internal bool IsClass { get; }
     internal bool SimpleHashing { get; }
-    internal FieldModel[] Fields { get; }
+    internal DataMemberModel[] DataMembers { get; }
 
     internal EqualityModel(
         string? @namespace,
         string typeName,
         bool isClass,
         bool simpleHashing,
-        FieldModel[] fields)
+        DataMemberModel[] dataMembers)
     {
         Namespace = @namespace;
         TypeName = typeName;
         IsClass = isClass;
         SimpleHashing = simpleHashing;
-        Fields = fields;
+        DataMembers = dataMembers;
     }
 }
 
@@ -54,7 +58,7 @@ internal sealed class EqualityModelComparer : IEqualityComparer<EqualityModel?>
             x.TypeName == y.TypeName &&
             x.IsClass == y.IsClass && 
             x.SimpleHashing == y.SimpleHashing &&
-            x.Fields.AsSpan().SequenceEqual(y.Fields.AsSpan());
+            x.DataMembers.AsSpan().SequenceEqual(y.DataMembers.AsSpan());
     }
 
     public int GetHashCode(EqualityModel? obj) => obj?.TypeName.GetHashCode() ?? 0;
