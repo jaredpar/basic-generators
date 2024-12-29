@@ -42,8 +42,12 @@ Individual members can customize their equality with the `[AutoEqualityMember]` 
 | --- | --- |
 | None | This member is not considered for equality |
 | Default | Use the default for this member |
-| CaseSensitive | Used for case sensitive string comparison. Only applicable on `string` types |
-| CaseInsensitive | Used for case insensitive string comparison. Only applicable on `string` types |
+| Ordinal | Uses `Ordinal` comparer. Only applicable on `string` types |
+| OrdinalIgnoreCase | Uses `OrdinalIgnoreCase` comparer. Only applicable on `string` types |
+| CurrentCulture | Uses `CurrentCulture` comparer. Only applicable on `string` types |
+| CurrentCultureIgnoreCase | Uses `CurrentCultureIgnoreCase` comparer. Only applicable on `string` types |
+| InvariantCulture | Uses `InvariantCulture` comparer. Only applicable on `string` types |
+| InvariantCultureIgnoreCase | Uses `InvariantCultureIgnoreCase` comparer. Only applicable on `string` types |
 | Sequence | Compare the sequence of elements. The type in question must have a `SequenceEquals` extension method |
 
 Any field or property that has a `get` and a `set / init` member will be considered for equality.
