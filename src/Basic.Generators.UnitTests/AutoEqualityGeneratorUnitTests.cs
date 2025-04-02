@@ -1,8 +1,20 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Basic.Reference.Assemblies;
+using Microsoft;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Testing;
+using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Testing;
+using Microsoft.CodeAnalysis.Text;
 using Xunit;
+
+using VerifyAutoEqualityGenerator = Basic.Generators.UnitTests.CSharpSourceGeneratorVerifier<Basic.Generators.AutoEqualityGenerator>;
 
 namespace Basic.Generators.UnitTests;
 
@@ -11,15 +23,12 @@ public class AutoEqualityGeneratorUnitTests
     public static IEnumerable<MetadataReference> CoreReferences => Net80.References.All;
     public static IEnumerable<MetadataReference> FrameworkReferences => Net472.References.All;
 
-    public GeneratorTestUtil GeneratorTestUtil { get; }
-
     public AutoEqualityGeneratorUnitTests()
     {
-        GeneratorTestUtil = new GeneratorTestUtil(new AutoEqualityGenerator());
     }
 
     [Fact]
-    public void SimpleClass()
+    public async Task SimpleClass()
     {
         var source = """
             namespace Example;
@@ -67,11 +76,17 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
+        await VerifyAutoEqualityGenerator.VerifyAsync(
+            [source],
+            CoreReferences,
+            [
+                (AutoEqualityGenerator.AutoEqualityAttributeHintName, AutoEqualityGenerator.GetAutoEqualityAttributeCode()),
+                ("AutoEquality.Example.Simple.Generated.cs", expected),
+            ]);
     }
 
     [Fact]
-    public void SimpleStruct()
+    public async Task SimpleStruct()
     {
         var source = """
             namespace Example;
@@ -116,11 +131,17 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
+        await VerifyAutoEqualityGenerator.VerifyAsync(
+            [source],
+            CoreReferences,
+            [
+                (AutoEqualityGenerator.AutoEqualityAttributeHintName, AutoEqualityGenerator.GetAutoEqualityAttributeCode()),
+                ("AutoEquality.Example.Simple.Generated.cs", expected),
+            ]);
     }
 
     [Fact]
-    public void NoNamespace()
+    public async Task NoNamespace()
     {
         var source = """
             #pragma warning disable CS0649
@@ -164,11 +185,17 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        GeneratorTestUtil.Verify(source, CoreReferences, expected, generatedTreeIndex: 1);
+        await VerifyAutoEqualityGenerator.VerifyAsync(
+            [source],
+            CoreReferences,
+            [
+                (AutoEqualityGenerator.AutoEqualityAttributeHintName, AutoEqualityGenerator.GetAutoEqualityAttributeCode()),
+                ("AutoEquality..Simple.Generated.cs", expected),
+            ]);
     }
 
     [Fact]
-    public void EqualsOperatorPrimitives()
+    public async Task EqualsOperatorPrimitives()
     {
         var source = """
             namespace Example;
@@ -185,7 +212,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public bool Equals(Simple? other)
                 {
                     if (other is null)
@@ -198,19 +225,19 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality.Example.Simple.Generated.cs",
+            "bool Simple.Equals(Simple? other)",
+            expectedMethodCode);
     }
 
     [Theory]
     [InlineData("int[]")]
     [InlineData("IEnumerable<int>")]
     [InlineData("List<char>")]
-    public void EqualsCollections(string typeName)
+    public async Task EqualsCollections(string typeName)
     {
         var source = $$"""
             namespace Example;
@@ -225,7 +252,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public bool Equals(Simple? other)
                 {
                     if (other is null)
@@ -236,16 +263,16 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality.Example.Simple.Generated.cs",
+            "bool Simple.Equals(Simple? other)",
+            expectedMethodCode);
     }
 
     [Fact]
-    public void EqualsProperty()
+    public async Task EqualsProperty()
     {
         var source = $$"""
             namespace Example;
@@ -263,7 +290,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public bool Equals(Simple? other)
                 {
                     if (other is null)
@@ -275,16 +302,16 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality.Example.Simple.Generated.cs",
+            "bool Simple.Equals(Simple? other)",
+            expectedMethodCode);
     }
 
     [Fact]
-    public void GetHashCodeSimple()
+    public async Task GetHashCodeSimple()
     {
         var source = """
             #pragma warning disable CS0649
@@ -297,23 +324,23 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public override int GetHashCode() =>
                     HashCode.Combine(
                         Field1,
                         Field2);
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "int Simple.GetHashCode()",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            "int Simple.GetHashCode()",
+            expectedMethodCode);
     }
 
     [Fact]
-    public void GetHashCodeOldStructFields()
+    public async Task GetHashCodeOldStructFields()
     {
         var source = """
             #pragma warning disable CS0649
@@ -326,7 +353,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public override int GetHashCode()
                 {
                     int hash = 17;
@@ -336,16 +363,16 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "int Simple.GetHashCode()",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             FrameworkReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            "int Simple.GetHashCode()",
+            expectedMethodCode);
     }
 
     [Fact]
-    public void GetHashCodeOldStructClass()
+    public async Task GetHashCodeOldStructClass()
     {
         var source = """
             #pragma warning disable CS0649
@@ -358,7 +385,7 @@ public class AutoEqualityGeneratorUnitTests
             }
             """;
 
-        var expected = """
+        var expectedMethodCode = """
                 public override int GetHashCode()
                 {
                     int hash = 17;
@@ -368,16 +395,16 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "int Simple.GetHashCode()",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             FrameworkReferences,
-            expected,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            "int Simple.GetHashCode()",
+            expectedMethodCode);
     }
 
     [Fact]
-    public void MemberSequence()
+    public async Task MemberSequence()
     {
         var source = """
             #pragma warning disable CS0649
@@ -398,13 +425,6 @@ public class AutoEqualityGeneratorUnitTests
                         StringComparer.OrdinalIgnoreCase.GetHashCode(Field2));
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "int Simple.GetHashCode()",
-            source,
-            CoreReferences,
-            expectedHashCode,
-            generatedTreeIndex: 1);
-
         var expectedEquals = """
                 public bool Equals(Simple? other)
                 {
@@ -417,16 +437,18 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expectedEquals,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            [
+                ("int Simple.GetHashCode()", expectedHashCode),
+                ("bool Simple.Equals(Simple? other)", expectedEquals)
+            ]);
     }
 
     [Fact]
-    public void MemberNone()
+    public async Task MemberNone()
     {
         var source = """
             #pragma warning disable CS0649
@@ -447,13 +469,6 @@ public class AutoEqualityGeneratorUnitTests
                         Field1);
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "int Simple.GetHashCode()",
-            source,
-            CoreReferences,
-            expectedHashCode,
-            generatedTreeIndex: 1);
-
         var expectedEquals = """
                 public bool Equals(Simple? other)
                 {
@@ -465,16 +480,18 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expectedEquals,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            [
+                ("int Simple.GetHashCode()", expectedHashCode),
+                ("bool Simple.Equals(Simple? other)", expectedEquals)
+            ]);
     }
 
     [Fact]
-    public void MemberProperty()
+    public async Task MemberProperty()
     {
         var source = """
             #pragma warning disable CS0649
@@ -502,12 +519,13 @@ public class AutoEqualityGeneratorUnitTests
                 }
             """;
 
-        GeneratorTestUtil.VerifyMethod(
-            "bool Simple.Equals(Simple? other)",
-            source,
+
+        await VerifyAutoEqualityGenerator.VerifyMethodAsync(
+            [source],
             CoreReferences,
-            expectedEquals,
-            generatedTreeIndex: 1);
+            "AutoEquality..Simple.Generated.cs",
+            "bool Simple.Equals(Simple? other)",
+            expectedEquals);
     }
 
     [Theory]
@@ -517,7 +535,7 @@ public class AutoEqualityGeneratorUnitTests
     [InlineData("InvariantCultureIgnoreCase", "test", "TEST", "diff")]
     [InlineData("CurrentCulture", "test", "test", "diff")]
     [InlineData("CurrentCultureIgnoreCase", "test", "TEST", "diff")]
-    public void MemberStringField(string kind, string value, string valueEqual, string valueDifferent)
+    public async Task MemberStringField(string kind, string value, string valueEqual, string valueDifferent)
     {
         var code = $$"""
             #pragma warning disable CS0649
@@ -543,8 +561,9 @@ public class AutoEqualityGeneratorUnitTests
                 public string Field = field;
             }
             """;
-        GeneratorTestUtil.VerifyOutput(
-            code,
+
+        await VerifyAutoEqualityGenerator.VerifyOutput(
+            [code],
             CoreReferences,
             "110");
     }
@@ -556,7 +575,7 @@ public class AutoEqualityGeneratorUnitTests
     [InlineData("InvariantCultureIgnoreCase", "test", "TEST", "diff")]
     [InlineData("CurrentCulture", "test", "test", "diff")]
     [InlineData("CurrentCultureIgnoreCase", "test", "TEST", "diff")]
-    public void MemberStringProperty(string kind, string value, string valueEqual, string valueDifferent)
+    public async Task MemberStringProperty(string kind, string value, string valueEqual, string valueDifferent)
     {
         var code = $$"""
             #pragma warning disable CS0649
@@ -582,8 +601,9 @@ public class AutoEqualityGeneratorUnitTests
                 public string Field { get; } = field;
             }
             """;
-        GeneratorTestUtil.VerifyOutput(
-            code,
+
+        await VerifyAutoEqualityGenerator.VerifyOutput(
+            [code],
             CoreReferences,
             "110");
     }
