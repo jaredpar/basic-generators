@@ -13,8 +13,8 @@ internal static class AssertEx
 {
     public static void CodeEquals(string expected, string actual)
     {
-        var expectedReader = new StringReader(expected);
-        var actualReader = new StringReader(actual);
+        var expectedReader = new StringReader(expected.TrimWhitespaceAndNewLines());
+        var actualReader = new StringReader(actual.TrimWhitespaceAndNewLines());
         var line = 0;
         do
         {

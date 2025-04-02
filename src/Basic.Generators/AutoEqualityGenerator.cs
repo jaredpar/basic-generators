@@ -17,38 +17,18 @@ public sealed class AutoEqualityGenerator : IIncrementalGenerator
 {
     private const string AutoEqualityAttributeName = "AutoEqualityAttribute";
     private const string AutoEqualityMemberAttributeName = "AutoEqualityMemberAttribute";
+    internal const string AutoEqualityAttributeHintName = "AutoEqualityAttribute.cs";
 
     private static readonly Lazy<string> s_autoEqualityKindCode = new(GetAutoEqualityKindCode);
+    private static readonly Lazy<string> s_autoEqualityAttributeCode = new(GetAutoEqualityAttributeCode);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         context.RegisterPostInitializationOutput(callback =>
         {
             callback.AddSource(
-                "AutoEqualityAttribute.cs",
-                $$"""
-using System;
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
-internal sealed class {{AutoEqualityAttributeName}} : Attribute
-{
-    public AutoEqualityAttribute()
-    {
-    }
-}
-
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
-internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
-{
-    public AutoEqualityKind Kind { get; set; }
-    public AutoEqualityMemberAttribute(AutoEqualityKind kind)
-    {
-        Kind = kind;
-    }
-}
-
-{{s_autoEqualityKindCode.Value}}
-
-""");
+                AutoEqualityAttributeHintName,
+                s_autoEqualityAttributeCode.Value);
         });
 
         var results = context.SyntaxProvider
@@ -218,4 +198,27 @@ internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
 
         return builder.ToString();
     }
+
+    internal static string GetAutoEqualityAttributeCode() => $$"""
+            using System;
+            [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+            internal sealed class {{AutoEqualityAttributeName}} : Attribute
+            {
+                public AutoEqualityAttribute()
+                {
+                }
+            }
+
+            [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+            internal sealed class {{AutoEqualityMemberAttributeName}} : Attribute
+            {
+                public AutoEqualityKind Kind { get; set; }
+                public AutoEqualityMemberAttribute(AutoEqualityKind kind)
+                {
+                    Kind = kind;
+                }
+            }
+
+            {{s_autoEqualityKindCode.Value}}
+            """;
 }
